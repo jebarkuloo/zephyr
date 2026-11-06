@@ -16,6 +16,7 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/drivers/haptics.h>
+#include <zephyr/drivers/haptics/cs40lxx.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log_instance.h>
 #include <sys/types.h>
@@ -32,6 +33,21 @@ extern "C" {
  */
 
 /**
+ * @brief Attenuation options for triggered haptic effects
+ * @details Provide to @ref cs40l5x_configure_trigger().
+ */
+enum cs40l5x_attenuation {
+	CS40L5X_ATTENUATION_7DB = -7, /**< Configure haptic effect with 7 dB attenuation */
+	CS40L5X_ATTENUATION_6DB,      /**< Configure haptic effect with 6 dB attenuation */
+	CS40L5X_ATTENUATION_5DB,      /**< Configure haptic effect with 5 dB attenuation */
+	CS40L5X_ATTENUATION_4DB,      /**< Configure haptic effect with 4 dB attenuation */
+	CS40L5X_ATTENUATION_3DB,      /**< Configure haptic effect with 3 dB attenuation */
+	CS40L5X_ATTENUATION_2DB,      /**< Configure haptic effect with 2 dB attenuation */
+	CS40L5X_ATTENUATION_1DB,      /**< Configure haptic effect with 1 dB attenuation */
+	CS40L5X_ATTENUATION_0DB,      /**< Configure haptic effect with no attenuation */
+};
+
+/**
  * @brief Wavetable sources for haptic effects
  */
 enum cs40l5x_source {
@@ -40,18 +56,12 @@ enum cs40l5x_source {
 };
 
 /**
- * @brief PWLE section definition
- * @details Provide array of sections to @ref cs40l5x_upload_pwle().
+ * @brief Options for edge-triggered haptics effects
+ * @details Provide to @ref cs40l5x_configure_trigger() to specify the edge for haptic effects.
  */
-struct cs40l5x_pwle_section {
-	/** Section duration in unsigned Q14.2 format (time) or Q16.0 format (half-cycles) */
-	uint16_t duration;
-	/** Section frequency in unsigned Q10.2 format */
-	uint16_t frequency;
-	/** Section level in unsigned Q0.11 format */
-	uint16_t level;
-	/** Section flags in unsigned Q4.0 format */
-	uint8_t flags;
+enum cs40l5x_trigger_edge {
+	CS40L5X_RISING_EDGE,  /**< Configure a rising-edge haptic effect */
+	CS40L5X_FALLING_EDGE, /**< Configure a falling-edge haptic effect */
 };
 
 /**
@@ -70,6 +80,25 @@ struct cs40l5x_pwle_section {
  */
 int cs40l5x_configure_buzz(const struct device *const dev, const uint32_t frequency,
 			   const uint8_t level, const uint32_t duration);
+
+/**
+ * @brief Configure edge-triggered haptic effect
+ *
+ * @param[in] dev Pointer to the device structure for haptic device instance
+ * @param[in] gpio Pointer to the device structure for the GPIO used as the trigger source
+ * @param[in] src Playback source (of type @ref haptics_source)
+ * @param[in] cfg Source configuration (of type @ref haptics_config)
+ * @param[in] attenuation Attenuation in dB for desired haptic effect
+ * @param[in] edge Specify edge (rising or falling) to trigger haptic effects
+ *
+ * @return 0 on success, negative errno value on failure.
+ * @retval -EINVAL Invalid wavetable source and index provided (e.g., index out of bounds).
+ * @retval -EIO A control port transaction failed.
+ */
+int cs40l5x_configure_trigger(const struct device *const dev, const struct gpio_dt_spec *const gpio,
+			      const enum haptics_source src, const union haptics_config *const cfg,
+			      const enum cs40l5x_attenuation attenuation,
+			      const enum cs40l5x_trigger_edge edge);
 
 /**
  * @brief Upload PCM effect to the specified index
@@ -93,7 +122,7 @@ int cs40l5x_upload_pcm(const struct device *const dev, const int index, const ui
  *
  * @param[in] dev Pointer to the device structure for haptic device instance
  * @param[in] index Wavetable index
- * @param[in] sections Array of @ref cs40l5x_pwle_section
+ * @param[in] sections Array of @ref cs40lxx_pwle_section
  * @param[in] num_sections Number of PWLE sections
  *
  * @return 0 on success, negative errno value on failure.
@@ -101,8 +130,12 @@ int cs40l5x_upload_pcm(const struct device *const dev, const int index, const ui
  * @retval -EIO A control port transaction failed.
  */
 int cs40l5x_upload_pwle(const struct device *const dev, const int index,
-			const struct cs40l5x_pwle_section *const sections,
+			const struct cs40lxx_pwle_section *const sections,
 			const uint8_t num_sections);
+
+#ifdef CONFIG_HAPTICS_CS40LXX_OWT
+int cs40l5x_upload_owt_composite(const struct device *const dev, const struct cs40lxx_owt_header *const owt_header, const struct cs40lxx_owt_composite_header *const composite_header, const struct cs40lxx_owt_composite_section *const *const sections);
+#endif
 
 /** @} */
 

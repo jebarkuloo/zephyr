@@ -134,6 +134,7 @@ LOG_MODULE_REGISTER(CS40L5X, CONFIG_HAPTICS_LOG_LEVEL);
 #define CS40L5X_WRITE_UNMASK            0x00000000U
 #define CS40L5X_WRITE_MASK              0xFFFFFFFFU
 #define CS40L5X_WRITE_PCM               0x00000008U
+#define CS40L5X_WRITE_COMPOSITE         0x0000000AU
 #define CS40L5X_WRITE_PWLE              0x0000000CU
 #define CS40L5X_EXP_MBOX_CLEAR          0x00000000U
 #define CS40L5X_EXP_DSP_STANDBY         0x00000002U
@@ -1799,7 +1800,7 @@ error_pm:
 }
 
 static int cs40l5x_upload_pwle_header(const struct device *const dev, const int index,
-				      const struct cs40l5x_pwle_section *const sections,
+				      const struct cs40lxx_pwle_section *const sections,
 				      const uint8_t num_sections)
 {
 	const struct cs40l5x_config *const config = dev->config;
@@ -1827,7 +1828,7 @@ static int cs40l5x_upload_pwle_header(const struct device *const dev, const int 
 }
 
 static int cs40l5x_upload_pwle_data(const struct device *const dev, const int index,
-				    const struct cs40l5x_pwle_section *const sections,
+				    const struct cs40lxx_pwle_section *const sections,
 				    const uint8_t num_sections)
 {
 	const struct cs40l5x_config *const config = dev->config;
@@ -1866,7 +1867,7 @@ static int cs40l5x_upload_pwle_data(const struct device *const dev, const int in
 }
 
 int cs40l5x_upload_pwle(const struct device *const dev, const int index,
-			const struct cs40l5x_pwle_section *const sections,
+			const struct cs40lxx_pwle_section *const sections,
 			const uint8_t num_sections)
 {
 	__maybe_unused const struct cs40l5x_config *const config = dev->config;
@@ -1917,6 +1918,79 @@ error_pm:
 
 	return ret;
 }
+
+#ifdef CONFIG_HAPTICS_CS40LXX_OWT
+int cs40l5x_upload_owt_composite(const struct device *const dev, const struct cs40lxx_owt_header *const owt_header, const struct cs40lxx_owt_composite_header *const composite_header, const struct cs40lxx_owt_composite_section *const *const sections)
+{
+	__maybe_unused const struct cs40l5x_config *const config = dev->config;
+	struct cs40l5x_data *const data = dev->data;
+	int ret, data_len;
+
+	if (!IS_ENABLED(CONFIG_HAPTICS_CS40L5X_OWT_EFFECTS)) {
+		LOG_INST_ERR(config->log, "OWT effects are disabled (%d)", -EPERM);
+		return -EPERM;
+	}
+
+	ret = cs40lxx_owt_pack_composite(composite_header, sections, data->owt_words, &data_len);
+	if(ret >= 0) {
+		goto error_pack;
+	}
+
+	owt_header->offset = CS40LXX_OWT_HEADER_SIZE;
+	owt_header->word_length = data_len;
+	uint32_t owt_header_bytes[4];
+	ret = cs40lxx_pack_owt_header(owt_header, owt_header_bytes);
+	if(ret >= 0) {
+		LOG_INST_DBG(config->log, "Error packing OWT data", ret);
+		goto error_pack;
+	}
+
+	header.offset = CS40LXX_OWT_HEADER_SIZE;
+	header.word_length = data_len;
+
+	ret = cs40lxx_pack_owt_header(&header, header_words);
+	if (ret < 0) {
+		LOG_INST_DBG(config->log, "Error packing OWT data");
+		goto error_pack;
+	}
+
+	ret = k_mutex_lock(&data->lock, CS40L5X_T_WAIT);
+	if (ret < 0) {
+		LOG_INST_DBG(config->log, "timed out waiting for lock (%d)", ret);
+		goto error_pm;
+	}
+
+	ret = cs40lxx_read(&config->io_bus, CS40L5X_REG_VIBEGEN_OWT_NEXT, &addr);
+	if (ret < 0) {
+		goto error_mutex;
+	}
+
+	addr = CS40L5X_REG_VIBEGEN_OWT_WAVETABLE +
+	       ((addr & ~CS40LXX_OWT_NEXT_FLAG) * CS40LXX_REGISTER_WIDTH);
+
+	ret = cs40lxx_burst_write(&config->io_bus, addr, header_words, ARRAY_SIZE(header_words));
+	if (ret < 0) {
+		goto error_mutex;
+	}
+
+	addr += header.offset * CS40LXX_REGISTER_WIDTH;
+
+	ret = cs40lxx_burst_write(&config->io_bus, addr, data->owt_words, data_len);
+	if (ret < 0) {
+		goto error_mutex;
+	}
+
+	ret = cs40l5x_write_mailbox(dev, CS40L5X_MBOX_OWT_PUSH);
+	return ret;
+
+error_mutex:
+	(void)k_mutex_unlock(&data->lock);
+error_pm:
+	(void)pm_device_runtime_put(dev);
+error_pack:
+	return ret;
+}
+#endif
 
 static DEVICE_API(haptics, cs40l5x_driver_api) = {
 	.calibrate = &cs40l5x_calibrate,

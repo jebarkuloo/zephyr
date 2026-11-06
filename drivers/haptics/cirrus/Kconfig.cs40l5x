@@ -73,6 +73,12 @@ config HAPTICS_CS40L5X_RTH_EFFECTS
 	help
 	  Enable upload and playback of PCM and PWLE waveforms.
 
+config HAPTICS_CS40L5X_OWT_EFFECTS
+	bool "PCM, Composite, and PWLE effects"
+	select HAPTICS_CS40LXX_OWT
+	help
+	  Enable upload and playback of PCM, Composite, and PWLE waveforms to the open wave table (OWT).
+
 config HAPTICS_CS40L5X_DYNAMIC_F0
 	bool "Dynamic F0"
 	default y

@@ -7,6 +7,7 @@
 #define ZEPHYR_DRIVERS_HAPTICS_CIRRUS_CS40L5X_H_
 
 #include "cs40lxx.h"
+#include "cs40lxx-owt.h"
 #include <zephyr/drivers/haptics/cs40l5x.h>
 
 #ifdef __cplusplus
@@ -95,6 +96,9 @@ struct cs40l5x_data {
 	struct k_sem calibration_semaphore;
 	struct cs40l5x_calibration calibration;
 	uint32_t output;
+#ifdef CONFIG_HAPTICS_CS40L5X_OWT_EFFECTS
+    uint32_t owt_words[CS40LXX_OWT_MAX_DATA_SIZE];
+#endif
 };
 
 #ifdef __cplusplus

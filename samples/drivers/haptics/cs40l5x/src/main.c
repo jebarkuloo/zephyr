@@ -110,7 +110,7 @@ static const int8_t pcm_samples[78] = {
 	0x30, 0x2D, 0x2B, 0x27, 0x22, 0x1E, 0x18, 0x12, 0x0D, 0x07, 0x00, 0xF9, 0xF3,
 };
 
-static const struct cs40l5x_pwle_section pwle_sections[] = {
+static const struct cs40lxx_pwle_section pwle_sections[] = {
 	{
 		.level = 0x400,
 	},

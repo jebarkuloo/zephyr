@@ -29,4 +29,10 @@ config HAPTICS_CS40LXX_SPI
 		 $(dt_compat_on_bus,$(DT_COMPAT_CIRRUS_CS40L53),spi)
 	select SPI
 
+config HAPTICS_CS40LXX_OWT
+    bool
+    help
+		Build the shared open wavetable (OWT) library. Selected by
+		the CS40Lxx device drivers that support OWT effects.
+
 endif #HAPTICS_CS40LXX
