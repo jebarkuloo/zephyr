@@ -55,21 +55,6 @@ enum cs40l5x_source {
 };
 
 /**
- * @brief PWLE section definition
- * @details Provide array of sections to @ref cs40l5x_upload_pwle().
- */
-struct cs40l5x_pwle_section {
-	/** Section duration in unsigned Q14.2 format (time) or Q16.0 format (half-cycles) */
-	uint16_t duration;
-	/** Section frequency in unsigned Q10.2 format */
-	uint16_t frequency;
-	/** Section level in unsigned Q0.11 format */
-	uint16_t level;
-	/** Section flags in unsigned Q4.0 format */
-	uint8_t flags;
-};
-
-/**
  * @brief Options for edge-triggered haptics effects
  * @details Provide to @ref cs40l5x_configure_trigger() to specify the edge for haptic effects.
  */
